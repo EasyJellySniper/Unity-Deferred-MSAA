@@ -42,20 +42,23 @@
 			Texture2DMS<float4, 8> _MsaaTex_8X;
 			float _MsaaFactor;
 			sampler2D _SkyTextureForResolve;
+			float _IsNormal;
 
 			float4 Resolve2X(v2f i)
 			{
 				float4 col = 0;
 				float4 skyColor = tex2D(_SkyTextureForResolve, i.uv);
+				float subCount = 0;
 
 				[unroll]
 				for (uint a = 0; a < 2; a++)
 				{
 					float4 data = _MsaaTex_2X.Load(i.vertex.xy, a);
+					subCount = lerp(subCount, subCount + 1, length(data) == 0 && _IsNormal);
 					data = lerp(data, skyColor, data.a < 0);
 					col += data;
 				}
-				col /= _MsaaFactor;
+				col /= (_MsaaFactor - subCount);
 
 				return col;
 			}
@@ -64,15 +67,17 @@
 			{
 				float4 col = 0;
 				float4 skyColor = tex2D(_SkyTextureForResolve, i.uv);
+				float subCount = 0;
 
 				[unroll]
 				for (uint a = 0; a < 4; a++)
 				{
 					float4 data = _MsaaTex_4X.Load(i.vertex.xy, a);
+					subCount = lerp(subCount, subCount + 1, length(data) == 0 && _IsNormal);
 					data = lerp(data, skyColor, data.a < 0);
 					col += data;
 				}
-				col /= _MsaaFactor;
+				col /= (_MsaaFactor - subCount);
 
 				return col;
 			}
@@ -81,15 +86,17 @@
 			{
 				float4 col = 0;
 				float4 skyColor = tex2D(_SkyTextureForResolve, i.uv);
+				float subCount = 0;
 
 				[unroll]
 				for (uint a = 0; a < 8; a++)
 				{
 					float4 data = _MsaaTex_8X.Load(i.vertex.xy, a);
+					subCount = lerp(subCount, subCount + 1, length(data) == 0 && _IsNormal);
 					data = lerp(data, skyColor, data.a < 0);
 					col += data;
 				}
-				col /= _MsaaFactor;
+				col /= (_MsaaFactor - subCount);
 
 				return col;
 			}

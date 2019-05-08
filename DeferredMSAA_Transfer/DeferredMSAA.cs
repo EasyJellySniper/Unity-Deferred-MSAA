@@ -9,6 +9,16 @@ using UnityEngine.Rendering;
 [RequireComponent(typeof(Camera))]
 public class DeferredMSAA : MonoBehaviour
 {
+    /// <summary>
+    /// msaa sample
+    /// </summary>
+    public enum MSAASample
+    {
+        Msaa2X = 0,
+        Msaa4X,
+        Msaa8X
+    }
+
     [DllImport("SetGBufferTarget")]
     static extern bool SetGBufferColor(int _index, int _msaaFactor, IntPtr _colorBuffer);
 
@@ -24,7 +34,7 @@ public class DeferredMSAA : MonoBehaviour
     /// <summary>
     /// msaa factor
     /// </summary>
-    public int msaaFactor = 2;
+    public MSAASample msaaFactor = MSAASample.Msaa4X;
 
     /// <summary>
     /// resolve aa material
@@ -58,6 +68,8 @@ public class DeferredMSAA : MonoBehaviour
 
     bool initSucceed = true;
     string[] texName = { "_MsaaTex_2X", "_MsaaTex_4X", "_MsaaTex_8X" };
+
+    int[] msaaFactors = { 2, 4, 8 };
     int lastWidth;
     int lastHeight;
     int lastMsaa;
@@ -68,18 +80,18 @@ public class DeferredMSAA : MonoBehaviour
 
         if (attachedCam.actualRenderingPath == RenderingPath.DeferredShading)
         {
-            CreateMapAndColorBuffer("Custom diffuse", 0, RenderTextureFormat.ARGB32, 0, msaaFactor, ref diffuseRT);
-            CreateMapAndColorBuffer("Custom specular", 0, RenderTextureFormat.ARGB32, 1, msaaFactor, ref specularRT);
-            CreateMapAndColorBuffer("Custom normal", 0, RenderTextureFormat.ARGB2101010, 2, msaaFactor, ref normalRT);
-            CreateMapAndColorBuffer("Custom emission", 0, attachedCam.allowHDR ? RenderTextureFormat.ARGBHalf : RenderTextureFormat.ARGB2101010, 3, msaaFactor, ref emissionRT);
-            CreateMapAndColorBuffer("Cutsom depth", 32, RenderTextureFormat.Depth, -1, msaaFactor, ref depthRT);
+            CreateMapAndColorBuffer("Custom diffuse", 0, RenderTextureFormat.ARGB32, 0, msaaFactors[(int)msaaFactor], ref diffuseRT);
+            CreateMapAndColorBuffer("Custom specular", 0, RenderTextureFormat.ARGB32, 1, msaaFactors[(int)msaaFactor], ref specularRT);
+            CreateMapAndColorBuffer("Custom normal", 0, RenderTextureFormat.ARGB2101010, 2, msaaFactors[(int)msaaFactor], ref normalRT);
+            CreateMapAndColorBuffer("Custom emission", 0, attachedCam.allowHDR ? RenderTextureFormat.ARGBHalf : RenderTextureFormat.ARGB2101010, 3, msaaFactors[(int)msaaFactor], ref emissionRT);
+            CreateMapAndColorBuffer("Cutsom depth", 32, RenderTextureFormat.Depth, -1, msaaFactors[(int)msaaFactor], ref depthRT);
             CreateMapAndColorBuffer("Sky Texture", 0, RenderTextureFormat.ARGB32, -1, 1, ref skyTexture);
 
             CreateAryMap("Diffuse Ary", RenderTextureFormat.ARGB32, ref diffuseAry);
             CreateAryMap("Specular Ary", RenderTextureFormat.ARGB32, ref specularAry);
             CreateAryMap("Normal Ary", RenderTextureFormat.ARGB2101010, ref normalAry);
 
-            initSucceed = initSucceed && SetGBufferDepth(msaaFactor, depthRT.GetNativeDepthBufferPtr());
+            initSucceed = initSucceed && SetGBufferDepth(msaaFactors[(int)msaaFactor], depthRT.GetNativeDepthBufferPtr());
 
             if (!initSucceed)
             {
@@ -96,31 +108,36 @@ public class DeferredMSAA : MonoBehaviour
             copyGBuffer = new CommandBuffer();
             copyGBuffer.name = "Copy MS GBuffer";
 
-            if (msaaFactor <= 1)
+            if (msaaFactors[(int)msaaFactor] <= 1)
             {
                 copyGBuffer.Blit(diffuseRT, BuiltinRenderTextureType.GBuffer0);
                 copyGBuffer.Blit(specularRT, BuiltinRenderTextureType.GBuffer1);
                 copyGBuffer.Blit(normalRT, BuiltinRenderTextureType.GBuffer2);
                 copyGBuffer.Blit(emissionRT, BuiltinRenderTextureType.CameraTarget);
                 copyGBuffer.IssuePluginEvent(GetRenderEventFunc(), 1);
-                copyGBuffer.SetGlobalFloat("_MsaaFactor", msaaFactor);
+                copyGBuffer.SetGlobalFloat("_MsaaFactor", msaaFactors[(int)msaaFactor]);
             }
             else
             {
-                copyGBuffer.SetGlobalFloat("_MsaaFactor", msaaFactor);
+                copyGBuffer.SetGlobalFloat("_MsaaFactor", msaaFactors[(int)msaaFactor]);
                 copyGBuffer.SetGlobalTexture("_SkyTextureForResolve", skyTexture);
 
                 int texIdx = 0;
-                texIdx = (msaaFactor == 4) ? 1 : texIdx;
-                texIdx = (msaaFactor == 8) ? 2 : texIdx;
+                texIdx = (msaaFactors[(int)msaaFactor] == 4) ? 1 : texIdx;
+                texIdx = (msaaFactors[(int)msaaFactor] == 8) ? 2 : texIdx;
 
                 copyGBuffer.SetGlobalTexture(texName[texIdx], emissionRT);
                 copyGBuffer.Blit(null, BuiltinRenderTextureType.CameraTarget, resolveAA);
 
+                copyGBuffer.SetGlobalTexture(texName[texIdx], normalRT);
+                copyGBuffer.SetGlobalFloat("_IsNormal", 1f);
+                copyGBuffer.Blit(null, BuiltinRenderTextureType.GBuffer2, resolveAA);
+                copyGBuffer.SetGlobalFloat("_IsNormal", 0f);
+
                 copyGBuffer.SetGlobalTexture(texName[texIdx], depthRT);
                 copyGBuffer.Blit(null, BuiltinRenderTextureType.CameraTarget, resolveAADepth);
 
-                for (int i = 0; i < msaaFactor; i++)
+                for (int i = 0; i < msaaFactors[(int)msaaFactor]; i++)
                 {
                     copyGBuffer.SetGlobalFloat("_TransferAAIndex", i);
 
@@ -145,7 +162,7 @@ public class DeferredMSAA : MonoBehaviour
 
         lastWidth = Screen.width;
         lastHeight = Screen.height;
-        lastMsaa = msaaFactor;
+        lastMsaa = msaaFactors[(int)msaaFactor];
     }
 
     void OnEnable()
@@ -159,6 +176,8 @@ public class DeferredMSAA : MonoBehaviour
         {
             attachedCam.AddCommandBuffer(CameraEvent.AfterGBuffer, copyGBuffer);
         }
+
+        Shader.SetGlobalFloat("_MsaaFactor", msaaFactors[(int)msaaFactor]);
     }
 
     void OnDisable()
@@ -172,6 +191,8 @@ public class DeferredMSAA : MonoBehaviour
         {
             attachedCam.RemoveCommandBuffer(CameraEvent.AfterGBuffer, copyGBuffer);
         }
+
+        Shader.SetGlobalFloat("_MsaaFactor", 1);
     }
 
     void OnDestroy()
@@ -200,6 +221,8 @@ public class DeferredMSAA : MonoBehaviour
         DestroyMap(normalAry);
 
         Release();
+
+        Shader.SetGlobalFloat("_MsaaFactor", 1);
     }
 
     void OnPreCull()
@@ -219,7 +242,7 @@ public class DeferredMSAA : MonoBehaviour
     void Update()
     {
 #if DEBUG
-        bool needResize = Screen.width != lastWidth || Screen.height != lastHeight || lastMsaa != msaaFactor;
+        bool needResize = Screen.width != lastWidth || Screen.height != lastHeight || lastMsaa != msaaFactors[(int)msaaFactor];
         if (needResize)
         {
             OnDestroy();
@@ -229,7 +252,7 @@ public class DeferredMSAA : MonoBehaviour
 
         lastWidth = Screen.width;
         lastHeight = Screen.height;
-        lastMsaa = msaaFactor;
+        lastMsaa = msaaFactors[(int)msaaFactor];
 #endif
     }
 
@@ -257,7 +280,7 @@ public class DeferredMSAA : MonoBehaviour
         _rt = new RenderTexture(Screen.width, Screen.height, 0, _format, RenderTextureReadWrite.Linear);
         _rt.name = _rtName;
         _rt.dimension = TextureDimension.Tex2DArray;
-        _rt.volumeDepth = msaaFactor;
+        _rt.volumeDepth = msaaFactors[(int)msaaFactor];
     }
 
     void DestroyMap(RenderTexture _rt)

@@ -14,7 +14,7 @@
 		{
 			Stencil
 			{
-				Ref 192
+				Ref 128
 				Comp always
 				Pass replace
 			}

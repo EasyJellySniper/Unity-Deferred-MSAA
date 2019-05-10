@@ -42,6 +42,8 @@ Texture2DArray<float4> _GBuffer1;
 Texture2DArray<float4> _GBuffer2;
 
 uint _MsaaFactor;
+float _MsaaThreshold;
+float _DebugMsaa;
 
 half4 CalculateLight (unity_v2f_deferred i)
 {
@@ -64,7 +66,21 @@ half4 CalculateLight (unity_v2f_deferred i)
 	[branch]
 	if (_MsaaFactor > 1)
 	{
-		for (uint a = 0; a < _MsaaFactor; a++)
+		// edge detect (normal difference)
+		float3 n0 = _GBuffer2.Load(uint4(uv * _ScreenParams.xy, 0, 0)).xyz;
+		bool needMSAA = false;
+		for (uint a = 1; a < _MsaaFactor; a++)
+		{
+			float3 n1 = _GBuffer2.Load(uint4(uv * _ScreenParams.xy, a, 0)).xyz;
+			needMSAA = needMSAA || abs(dot(abs(n0.xyz - n1.xyz), float3(1, 1, 1))) > _MsaaThreshold;
+		}
+		uint msaaCount = lerp(1, _MsaaFactor, needMSAA);
+		
+		[branch]
+		if (_DebugMsaa && needMSAA)
+			return float4(1, 0, 0, 1);
+		
+		for (a = 0; a < msaaCount; a++)
 		{
 			gbuffer0 = _GBuffer0.Load(uint4(uv * _ScreenParams.xy, a, 0));
 			gbuffer1 = _GBuffer1.Load(uint4(uv * _ScreenParams.xy, a, 0));
@@ -81,7 +97,7 @@ half4 CalculateLight (unity_v2f_deferred i)
 
 			col += UNITY_BRDF_PBS(data.diffuseColor, data.specularColor, oneMinusReflectivity, data.smoothness, data.normalWorld, -eyeVec, light, ind);
 		}
-		col /= _MsaaFactor;
+		col /= msaaCount;
 	}
 	else
 	{

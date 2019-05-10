@@ -37,6 +37,17 @@ public class DeferredMSAA : MonoBehaviour
     public MSAASample msaaFactor = MSAASample.Msaa4X;
 
     /// <summary>
+    /// msaa threshold
+    /// </summary>
+    [Range(0, 1)]
+    public float msaaThreshold = 0.1f;
+
+    /// <summary>
+    /// debug msaa
+    /// </summary>
+    public bool debugMsaa = false;
+
+    /// <summary>
     /// resolve aa material
     /// </summary>
     public Material resolveAA;
@@ -254,6 +265,9 @@ public class DeferredMSAA : MonoBehaviour
         lastHeight = Screen.height;
         lastMsaa = msaaFactors[(int)msaaFactor];
 #endif
+
+        Shader.SetGlobalFloat("_MsaaThreshold", msaaThreshold);
+        Shader.SetGlobalFloat("_DebugMsaa", (debugMsaa) ? 1f : 0f);
     }
 
     void CreateMapAndColorBuffer(string _rtName, int _depth, RenderTextureFormat _format, int _gBufferIdx, int _msaaFactor, ref RenderTexture _rt)

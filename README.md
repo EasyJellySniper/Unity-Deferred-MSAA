@@ -7,7 +7,7 @@ Still no AA on transparent objects (using posteffect aa for them) <br>
 Light culling mask only works with "Everything" <br>
 
 Code Setup: <br>
-1. Build native plugin project SetGBufferPluginSource, and copy [SetGBufferTarget.dll] to Plugins/x86_64
+1. Copy [SetGBufferTarget.dll] to Plugins/x86_64
 2. Attach [DeferredMSAA.cs] to your camera, and it will set rendering path to deferred shading.
 3. Create materials for [ResolveAA]、[ResolveAADepth]、[TransferAA shaders], and set them to DeferredMSAA inspector.
 4. Select msaa factor.

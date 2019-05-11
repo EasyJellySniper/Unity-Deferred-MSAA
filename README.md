@@ -11,4 +11,7 @@ Code Setup: <br>
 2. Attach [DeferredMSAA.cs] to your camera, and it will set rendering path to deferred shading.
 3. Create materials for [ResolveAA]、[ResolveAADepth]、[TransferAA shaders], and set them to DeferredMSAA inspector.
 4. Select msaa factor.
-5. In GraphicsSettings, set deferred shading shader to [Custom-DeferredShading] or imitate the modification in [Custom-DeferredShading] shader.
+5. In GraphicsSettings, set deferred shading shader to [Custom-DeferredShading] or imitate the modification in [Custom-DeferredShading] shader. <br> <br>
+
+
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=KA9LMCBJQ9C6E)

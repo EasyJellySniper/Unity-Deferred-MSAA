@@ -88,88 +88,77 @@ public class DeferredMSAA : MonoBehaviour
     void Awake()
     {
         attachedCam = GetComponent<Camera>();
+        attachedCam.renderingPath = RenderingPath.DeferredShading;
+        attachedCam.allowHDR = true;
+        GraphicsSettings.SetShaderMode(BuiltinShaderType.DeferredReflections, BuiltinShaderMode.Disabled);
 
-        if (attachedCam.actualRenderingPath == RenderingPath.DeferredShading)
+        CreateMapAndColorBuffer("Custom diffuse", 0, RenderTextureFormat.ARGB32, 0, msaaFactors[(int)msaaFactor], ref diffuseRT);
+        CreateMapAndColorBuffer("Custom specular", 0, RenderTextureFormat.ARGB32, 1, msaaFactors[(int)msaaFactor], ref specularRT);
+        CreateMapAndColorBuffer("Custom normal", 0, RenderTextureFormat.ARGB2101010, 2, msaaFactors[(int)msaaFactor], ref normalRT);
+        CreateMapAndColorBuffer("Custom emission", 0, attachedCam.allowHDR ? RenderTextureFormat.ARGBHalf : RenderTextureFormat.ARGB2101010, 3, msaaFactors[(int)msaaFactor], ref emissionRT);
+        CreateMapAndColorBuffer("Cutsom depth", 32, RenderTextureFormat.Depth, -1, msaaFactors[(int)msaaFactor], ref depthRT);
+        CreateMapAndColorBuffer("Sky Texture", 0, RenderTextureFormat.ARGB32, -1, 1, ref skyTexture);
+
+        CreateAryMap("Diffuse Ary", RenderTextureFormat.ARGB32, ref diffuseAry);
+        CreateAryMap("Specular Ary", RenderTextureFormat.ARGB32, ref specularAry);
+        CreateAryMap("Normal Ary", RenderTextureFormat.ARGB2101010, ref normalAry);
+
+        initSucceed = initSucceed && SetGBufferDepth(msaaFactors[(int)msaaFactor], depthRT.GetNativeDepthBufferPtr());
+
+        if (!initSucceed)
         {
-            CreateMapAndColorBuffer("Custom diffuse", 0, RenderTextureFormat.ARGB32, 0, msaaFactors[(int)msaaFactor], ref diffuseRT);
-            CreateMapAndColorBuffer("Custom specular", 0, RenderTextureFormat.ARGB32, 1, msaaFactors[(int)msaaFactor], ref specularRT);
-            CreateMapAndColorBuffer("Custom normal", 0, RenderTextureFormat.ARGB2101010, 2, msaaFactors[(int)msaaFactor], ref normalRT);
-            CreateMapAndColorBuffer("Custom emission", 0, attachedCam.allowHDR ? RenderTextureFormat.ARGBHalf : RenderTextureFormat.ARGB2101010, 3, msaaFactors[(int)msaaFactor], ref emissionRT);
-            CreateMapAndColorBuffer("Cutsom depth", 32, RenderTextureFormat.Depth, -1, msaaFactors[(int)msaaFactor], ref depthRT);
-            CreateMapAndColorBuffer("Sky Texture", 0, RenderTextureFormat.ARGB32, -1, 1, ref skyTexture);
-
-            CreateAryMap("Diffuse Ary", RenderTextureFormat.ARGB32, ref diffuseAry);
-            CreateAryMap("Specular Ary", RenderTextureFormat.ARGB32, ref specularAry);
-            CreateAryMap("Normal Ary", RenderTextureFormat.ARGB2101010, ref normalAry);
-
-            initSucceed = initSucceed && SetGBufferDepth(msaaFactors[(int)msaaFactor], depthRT.GetNativeDepthBufferPtr());
-
-            if (!initSucceed)
-            {
-                Debug.Log("MainGraphic : [DeferredModifier] detph native failed.");
-                enabled = false;
-                OnDestroy();
-                return;
-            }
-
-            msGBuffer = new CommandBuffer();
-            msGBuffer.name = "Bind MS GBuffer";
-            msGBuffer.IssuePluginEvent(GetRenderEventFunc(), 0);
-
-            copyGBuffer = new CommandBuffer();
-            copyGBuffer.name = "Copy MS GBuffer";
-
-            if (msaaFactors[(int)msaaFactor] <= 1)
-            {
-                copyGBuffer.Blit(diffuseRT, BuiltinRenderTextureType.GBuffer0);
-                copyGBuffer.Blit(specularRT, BuiltinRenderTextureType.GBuffer1);
-                copyGBuffer.Blit(normalRT, BuiltinRenderTextureType.GBuffer2);
-                copyGBuffer.Blit(emissionRT, BuiltinRenderTextureType.CameraTarget);
-                copyGBuffer.IssuePluginEvent(GetRenderEventFunc(), 1);
-                copyGBuffer.SetGlobalFloat("_MsaaFactor", msaaFactors[(int)msaaFactor]);
-            }
-            else
-            {
-                copyGBuffer.SetGlobalFloat("_MsaaFactor", msaaFactors[(int)msaaFactor]);
-                copyGBuffer.SetGlobalTexture("_SkyTextureForResolve", skyTexture);
-
-                int texIdx = 0;
-                texIdx = (msaaFactors[(int)msaaFactor] == 4) ? 1 : texIdx;
-                texIdx = (msaaFactors[(int)msaaFactor] == 8) ? 2 : texIdx;
-
-                copyGBuffer.SetGlobalTexture(texName[texIdx], emissionRT);
-                copyGBuffer.Blit(null, BuiltinRenderTextureType.CameraTarget, resolveAA);
-
-                copyGBuffer.SetGlobalTexture(texName[texIdx], normalRT);
-                copyGBuffer.SetGlobalFloat("_IsNormal", 1f);
-                copyGBuffer.Blit(null, BuiltinRenderTextureType.GBuffer2, resolveAA);
-                copyGBuffer.SetGlobalFloat("_IsNormal", 0f);
-
-                copyGBuffer.SetGlobalTexture(texName[texIdx], depthRT);
-                copyGBuffer.Blit(null, BuiltinRenderTextureType.CameraTarget, resolveAADepth);
-
-                for (int i = 0; i < msaaFactors[(int)msaaFactor]; i++)
-                {
-                    copyGBuffer.SetGlobalFloat("_TransferAAIndex", i);
-
-                    copyGBuffer.SetRenderTarget(diffuseAry, 0, CubemapFace.Unknown, i);
-                    copyGBuffer.SetGlobalTexture("_MsaaTex", diffuseRT);
-                    copyGBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, transferAA);
-
-                    copyGBuffer.SetRenderTarget(specularAry, 0, CubemapFace.Unknown, i);
-                    copyGBuffer.SetGlobalTexture("_MsaaTex", specularRT);
-                    copyGBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, transferAA);
-
-                    copyGBuffer.SetRenderTarget(normalAry, 0, CubemapFace.Unknown, i);
-                    copyGBuffer.SetGlobalTexture("_MsaaTex", normalRT);
-                    copyGBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, transferAA);
-                }
-
-                copyGBuffer.SetGlobalTexture("_GBuffer0", diffuseAry);
-                copyGBuffer.SetGlobalTexture("_GBuffer1", specularAry);
-                copyGBuffer.SetGlobalTexture("_GBuffer2", normalAry);
-            }
+            Debug.Log("MainGraphic : [DeferredMSAA] detph native failed.");
+            enabled = false;
+            OnDestroy();
+            return;
         }
+
+        msGBuffer = new CommandBuffer();
+        msGBuffer.name = "Bind MS GBuffer";
+        msGBuffer.IssuePluginEvent(GetRenderEventFunc(), 0);
+
+        copyGBuffer = new CommandBuffer();
+        copyGBuffer.name = "Copy MS GBuffer";
+
+
+        copyGBuffer.SetGlobalFloat("_MsaaFactor", msaaFactors[(int)msaaFactor]);
+        copyGBuffer.SetGlobalTexture("_SkyTextureForResolve", skyTexture);
+
+        int texIdx = 0;
+        texIdx = (msaaFactors[(int)msaaFactor] == 4) ? 1 : texIdx;
+        texIdx = (msaaFactors[(int)msaaFactor] == 8) ? 2 : texIdx;
+
+        copyGBuffer.SetGlobalTexture(texName[texIdx], emissionRT);
+        copyGBuffer.Blit(null, BuiltinRenderTextureType.CameraTarget, resolveAA);
+
+        copyGBuffer.SetGlobalTexture(texName[texIdx], normalRT);
+        copyGBuffer.SetGlobalFloat("_IsNormal", 1f);
+        copyGBuffer.Blit(null, BuiltinRenderTextureType.GBuffer2, resolveAA);
+        copyGBuffer.SetGlobalFloat("_IsNormal", 0f);
+
+        copyGBuffer.SetGlobalTexture(texName[texIdx], depthRT);
+        copyGBuffer.Blit(null, BuiltinRenderTextureType.CameraTarget, resolveAADepth);
+
+        for (int i = 0; i < msaaFactors[(int)msaaFactor]; i++)
+        {
+            copyGBuffer.SetGlobalFloat("_TransferAAIndex", i);
+
+            copyGBuffer.SetRenderTarget(diffuseAry, 0, CubemapFace.Unknown, i);
+            copyGBuffer.SetGlobalTexture("_MsaaTex", diffuseRT);
+            copyGBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, transferAA);
+
+            copyGBuffer.SetRenderTarget(specularAry, 0, CubemapFace.Unknown, i);
+            copyGBuffer.SetGlobalTexture("_MsaaTex", specularRT);
+            copyGBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, transferAA);
+
+            copyGBuffer.SetRenderTarget(normalAry, 0, CubemapFace.Unknown, i);
+            copyGBuffer.SetGlobalTexture("_MsaaTex", normalRT);
+            copyGBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, transferAA);
+        }
+
+        copyGBuffer.SetGlobalTexture("_GBuffer0", diffuseAry);
+        copyGBuffer.SetGlobalTexture("_GBuffer1", specularAry);
+        copyGBuffer.SetGlobalTexture("_GBuffer2", normalAry);
 
         lastWidth = Screen.width;
         lastHeight = Screen.height;
@@ -283,7 +272,7 @@ public class DeferredMSAA : MonoBehaviour
             bool nativeSucceed = SetGBufferColor(_gBufferIdx, _msaaFactor, _rt.GetNativeTexturePtr());
             if (!nativeSucceed)
             {
-                Debug.Log("MainGraphic : [DeferredModifier] " + _rtName + " native failed.");
+                Debug.Log("MainGraphic : [DeferredMSAA] " + _rtName + " native failed.");
                 initSucceed = false;
             }
         }

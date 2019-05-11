@@ -95,7 +95,7 @@ public class DeferredMSAA : MonoBehaviour
         CreateMapAndColorBuffer("Custom diffuse", 0, RenderTextureFormat.ARGB32, 0, msaaFactors[(int)msaaFactor], ref diffuseRT);
         CreateMapAndColorBuffer("Custom specular", 0, RenderTextureFormat.ARGB32, 1, msaaFactors[(int)msaaFactor], ref specularRT);
         CreateMapAndColorBuffer("Custom normal", 0, RenderTextureFormat.ARGB2101010, 2, msaaFactors[(int)msaaFactor], ref normalRT);
-        CreateMapAndColorBuffer("Custom emission", 0, attachedCam.allowHDR ? RenderTextureFormat.ARGBHalf : RenderTextureFormat.ARGB2101010, 3, msaaFactors[(int)msaaFactor], ref emissionRT);
+        CreateMapAndColorBuffer("Custom emission", 0, RenderTextureFormat.ARGBHalf, 3, msaaFactors[(int)msaaFactor], ref emissionRT);
         CreateMapAndColorBuffer("Cutsom depth", 32, RenderTextureFormat.Depth, -1, msaaFactors[(int)msaaFactor], ref depthRT);
         CreateMapAndColorBuffer("Sky Texture", 0, RenderTextureFormat.ARGB32, -1, 1, ref skyTexture);
 

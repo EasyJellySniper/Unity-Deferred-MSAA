@@ -241,14 +241,6 @@ public class DeferredMSAA : MonoBehaviour
 
     void Update()
     {
-#if UNITY_EDITOR
-        bool sceneView = Camera.current && !Camera.current.Equals(attachedCam);
-        if (sceneView)
-        {
-            enabled = false;
-        }
-#endif
-
 #if DEBUG
         bool needResize = Screen.width != lastWidth || Screen.height != lastHeight || lastMsaa != msaaFactors[(int)msaaFactor];
         if (needResize)

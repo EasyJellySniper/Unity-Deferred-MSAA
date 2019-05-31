@@ -66,13 +66,19 @@ half4 CalculateLight (unity_v2f_deferred i)
 	[branch]
 	if (_MsaaFactor > 1)
 	{
-		// edge detect (normal difference)
+		// edge detect (color & normal difference)
+		float3 c0 = _GBuffer0.Load(uint4(uv * _ScreenParams.xy, 0, 0)).rgb;
 		float3 n0 = _GBuffer2.Load(uint4(uv * _ScreenParams.xy, 0, 0)).xyz;
+		
 		bool needMSAA = false;
 		for (uint a = 1; a < _MsaaFactor; a++)
 		{
+			float3 c1 = _GBuffer0.Load(uint4(uv * _ScreenParams.xy, a, 0)).rgb;
 			float3 n1 = _GBuffer2.Load(uint4(uv * _ScreenParams.xy, a, 0)).xyz;
-			needMSAA = needMSAA || abs(dot(abs(n0.xyz - n1.xyz), float3(1, 1, 1))) > _MsaaThreshold;
+			
+			needMSAA = needMSAA 
+			|| abs(dot(abs(c0.rgb - c1.rgb), float3(1, 1, 1))) > _MsaaThreshold
+			|| abs(dot(abs(n0.xyz - n1.xyz), float3(1, 1, 1))) > _MsaaThreshold;
 		}
 		uint msaaCount = lerp(1, _MsaaFactor, needMSAA);
 		

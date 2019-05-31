@@ -48,6 +48,7 @@
 			{
 				float4 col = 0;
 				float4 skyColor = tex2D(_SkyTextureForResolve, i.uv);
+				skyColor.a = 1;
 				float subCount = 0;
 
 				[unroll]
@@ -67,6 +68,7 @@
 			{
 				float4 col = 0;
 				float4 skyColor = tex2D(_SkyTextureForResolve, i.uv);
+				skyColor.a = 1;
 				float subCount = 0;
 
 				[unroll]
@@ -86,6 +88,7 @@
 			{
 				float4 col = 0;
 				float4 skyColor = tex2D(_SkyTextureForResolve, i.uv);
+				skyColor.a = 1;
 				float subCount = 0;
 
 				[unroll]

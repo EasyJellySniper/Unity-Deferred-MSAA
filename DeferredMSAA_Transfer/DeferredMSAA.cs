@@ -34,7 +34,7 @@ public class DeferredMSAA : MonoBehaviour
     /// <summary>
     /// msaa factor
     /// </summary>
-    public MSAASample msaaFactor = MSAASample.Msaa4X;
+    public MSAASample msaaFactor = MSAASample.Msaa2X;
 
     /// <summary>
     /// msaa threshold
@@ -90,14 +90,16 @@ public class DeferredMSAA : MonoBehaviour
         attachedCam = GetComponent<Camera>();
         attachedCam.renderingPath = RenderingPath.DeferredShading;
         attachedCam.allowHDR = true;
-        GraphicsSettings.SetShaderMode(BuiltinShaderType.DeferredReflections, BuiltinShaderMode.Disabled);
 
         CreateMapAndColorBuffer("Custom diffuse", 0, RenderTextureFormat.ARGB32, 0, msaaFactors[(int)msaaFactor], ref diffuseRT);
         CreateMapAndColorBuffer("Custom specular", 0, RenderTextureFormat.ARGB32, 1, msaaFactors[(int)msaaFactor], ref specularRT);
         CreateMapAndColorBuffer("Custom normal", 0, RenderTextureFormat.ARGB2101010, 2, msaaFactors[(int)msaaFactor], ref normalRT);
         CreateMapAndColorBuffer("Custom emission", 0, RenderTextureFormat.ARGBHalf, 3, msaaFactors[(int)msaaFactor], ref emissionRT);
         CreateMapAndColorBuffer("Cutsom depth", 32, RenderTextureFormat.Depth, -1, msaaFactors[(int)msaaFactor], ref depthRT);
-        CreateMapAndColorBuffer("Sky Texture", 0, RenderTextureFormat.ARGB32, -1, 1, ref skyTexture);
+
+        // sky tex, quarter res is enough
+        skyTexture = new RenderTexture(Screen.width / 4, Screen.height / 4, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+        skyTexture.name = "Sky Texture";
 
         CreateAryMap("Diffuse Ary", RenderTextureFormat.ARGB32, ref diffuseAry);
         CreateAryMap("Specular Ary", RenderTextureFormat.ARGB32, ref specularAry);
@@ -130,6 +132,12 @@ public class DeferredMSAA : MonoBehaviour
 
         copyGBuffer.SetGlobalTexture(texName[texIdx], emissionRT);
         copyGBuffer.Blit(null, BuiltinRenderTextureType.CameraTarget, resolveAA);
+
+        copyGBuffer.SetGlobalTexture(texName[texIdx], diffuseRT);
+        copyGBuffer.Blit(null, BuiltinRenderTextureType.GBuffer0, resolveAA);
+
+        copyGBuffer.SetGlobalTexture(texName[texIdx], specularRT);
+        copyGBuffer.Blit(null, BuiltinRenderTextureType.GBuffer1, resolveAA);
 
         copyGBuffer.SetGlobalTexture(texName[texIdx], normalRT);
         copyGBuffer.SetGlobalFloat("_IsNormal", 1f);

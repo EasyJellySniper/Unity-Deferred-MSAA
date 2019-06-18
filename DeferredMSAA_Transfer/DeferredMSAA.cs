@@ -84,6 +84,7 @@ public class DeferredMSAA : MonoBehaviour
     int lastWidth;
     int lastHeight;
     int lastMsaa;
+    bool sceneViewAccess = false;
 
     void Awake()
     {
@@ -175,32 +176,12 @@ public class DeferredMSAA : MonoBehaviour
 
     void OnEnable()
     {
-        if (msGBuffer != null)
-        {
-            attachedCam.AddCommandBuffer(CameraEvent.BeforeGBuffer, msGBuffer);
-        }
-
-        if (copyGBuffer != null)
-        {
-            attachedCam.AddCommandBuffer(CameraEvent.AfterGBuffer, copyGBuffer);
-        }
-
-        Shader.SetGlobalFloat("_MsaaFactor", msaaFactors[(int)msaaFactor]);
+        EnableDeferredAA();
     }
 
     void OnDisable()
     {
-        if (msGBuffer != null)
-        {
-            attachedCam.RemoveCommandBuffer(CameraEvent.BeforeGBuffer, msGBuffer);
-        }
-
-        if (copyGBuffer != null)
-        {
-            attachedCam.RemoveCommandBuffer(CameraEvent.AfterGBuffer, copyGBuffer);
-        }
-
-        Shader.SetGlobalFloat("_MsaaFactor", 1);
+        DisableDeferredAA();
     }
 
     void OnDestroy()
@@ -250,6 +231,7 @@ public class DeferredMSAA : MonoBehaviour
     void Update()
     {
 #if DEBUG
+        // resize check
         bool needResize = Screen.width != lastWidth || Screen.height != lastHeight || lastMsaa != msaaFactors[(int)msaaFactor];
         if (needResize)
         {
@@ -261,10 +243,58 @@ public class DeferredMSAA : MonoBehaviour
         lastWidth = Screen.width;
         lastHeight = Screen.height;
         lastMsaa = msaaFactors[(int)msaaFactor];
+
+        // camera check
+        if (Camera.current)
+        {
+            if (Camera.current.Equals(attachedCam))
+            {
+                if (sceneViewAccess)
+                {
+                    EnableDeferredAA();
+                    sceneViewAccess = false;
+                }
+            }
+            else
+            {
+                DisableDeferredAA();
+                sceneViewAccess = true;
+            }
+        }
 #endif
 
         Shader.SetGlobalFloat("_MsaaThreshold", msaaThreshold);
         Shader.SetGlobalFloat("_DebugMsaa", (debugMsaa) ? 1f : 0f);
+    }
+
+    void EnableDeferredAA()
+    {
+        if (msGBuffer != null)
+        {
+            attachedCam.AddCommandBuffer(CameraEvent.BeforeGBuffer, msGBuffer);
+        }
+
+        if (copyGBuffer != null)
+        {
+            attachedCam.AddCommandBuffer(CameraEvent.AfterGBuffer, copyGBuffer);
+        }
+
+        Shader.SetGlobalFloat("_MsaaFactor", msaaFactors[(int)msaaFactor]);
+    }
+
+    void DisableDeferredAA()
+    {
+        if (msGBuffer != null)
+        {
+            attachedCam.RemoveCommandBuffer(CameraEvent.BeforeGBuffer, msGBuffer);
+        }
+
+        if (copyGBuffer != null)
+        {
+            attachedCam.RemoveCommandBuffer(CameraEvent.AfterGBuffer, copyGBuffer);
+        }
+
+        Shader.SetGlobalFloat("_MsaaFactor", 1);
     }
 
     void CreateMapAndColorBuffer(string _rtName, int _depth, RenderTextureFormat _format, int _gBufferIdx, int _msaaFactor, ref RenderTexture _rt)

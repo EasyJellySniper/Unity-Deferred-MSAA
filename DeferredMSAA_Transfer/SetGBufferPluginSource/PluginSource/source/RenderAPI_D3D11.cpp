@@ -23,7 +23,6 @@ public:
 	virtual bool SetGBufferColor(int _index, int _msaaFactor, void *_colorBuffer);
 	virtual bool SetGBufferDepth(int _msaaFactor, void *_depthBuffer);
 	virtual void SetGBufferTarget();
-	virtual void CopyGBufferDepth();
 
 private:
 	void CreateResources();
@@ -36,7 +35,6 @@ private:
 	ID3D11Texture2D* gBufferDepth;
 	ID3D11RenderTargetView* gBufferColorView[4];
 	ID3D11DepthStencilView* gBufferDepthView;
-	ID3D11DepthStencilView* screenDepthView;
 };
 
 
@@ -155,35 +153,9 @@ void RenderAPI_D3D11::SetGBufferTarget()
 		immediateContext->ClearRenderTargetView(gBufferColorView[i], clearColor);
 	}
 
-	// get unity's depth buffer
-	immediateContext->OMGetRenderTargets(0, NULL, &screenDepthView);
-
 	// replace om binding with custom targets
 	immediateContext->ClearDepthStencilView(gBufferDepthView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
 	immediateContext->OMSetRenderTargets(4, gBufferColorView, gBufferDepthView);
-
-	immediateContext->Release();
-}
-
-void RenderAPI_D3D11::CopyGBufferDepth()
-{
-	if (m_Device == nullptr)
-	{
-		return;
-	}
-
-	ID3D11DeviceContext *immediateContext = nullptr;
-	m_Device->GetImmediateContext(&immediateContext);
-
-	if (immediateContext == nullptr)
-	{
-		return;
-	}
-
-	ID3D11Resource* screenDepth;
-	screenDepthView->GetResource(&screenDepth);
-	immediateContext->CopyResource(screenDepth, gBufferDepth);
-	screenDepth->Release();
 
 	immediateContext->Release();
 }
@@ -200,7 +172,6 @@ void RenderAPI_D3D11::ReleaseResources()
 		SAFE_RELEASE(gBufferColorView[i]);
 	}
 	SAFE_RELEASE(gBufferDepthView);
-	SAFE_RELEASE(screenDepthView);
 }
 
 DXGI_FORMAT RenderAPI_D3D11::ConvertTypelessFormat(DXGI_FORMAT _typelessFormat)

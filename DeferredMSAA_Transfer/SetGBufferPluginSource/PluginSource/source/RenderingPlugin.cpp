@@ -111,10 +111,6 @@ static void UNITY_INTERFACE_API OnRenderEvent(int eventID)
 	{
 		s_CurrentAPI->SetGBufferTarget();
 	}
-	else if (eventID == 1)
-	{
-		s_CurrentAPI->CopyGBufferDepth();
-	}
 }
 
 

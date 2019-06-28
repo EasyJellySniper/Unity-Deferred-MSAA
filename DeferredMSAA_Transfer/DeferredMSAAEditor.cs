@@ -1,4 +1,5 @@
 ﻿using UnityEditor;
+using UnityEngine;
 
 /// <summary>
 /// deferred aa editor
@@ -6,28 +7,9 @@
 [CustomEditor(typeof(DeferredMSAA))]
 public class DeferredMSAAEditor : Editor
 {
-    bool isSceneView = false;
-
-    void OnEnable()
+    [DrawGizmo(GizmoType.NotInSelectionHierarchy)]
+    static void RenderCustomGizmo(Transform objectTransform, GizmoType gizmoType)
     {
-        EditorApplication.update -= CheckSceneView;
-        EditorApplication.update += CheckSceneView;
-    }
-
-    void OnDisable()
-    {
-        EditorApplication.update -= CheckSceneView;
-    }
-
-    void OnSceneGUI()
-    {
-        isSceneView = true;
-    }
-
-    void CheckSceneView()
-    {
-        DeferredMSAA deferredAA = target as DeferredMSAA;
-        deferredAA.enabled = !isSceneView;
-        isSceneView = false;
+        DeferredMSAA.isSceneView = true;
     }
 }

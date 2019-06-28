@@ -10,6 +10,11 @@ using UnityEngine.Rendering;
 public class DeferredMSAA : MonoBehaviour
 {
     /// <summary>
+    /// is scene view
+    /// </summary>
+    public static bool isSceneView = false;
+
+    /// <summary>
     /// msaa sample
     /// </summary>
     public enum MSAASample
@@ -84,7 +89,6 @@ public class DeferredMSAA : MonoBehaviour
     int lastWidth;
     int lastHeight;
     int lastMsaa;
-    bool sceneViewAccess = false;
 
     void Awake()
     {
@@ -243,23 +247,17 @@ public class DeferredMSAA : MonoBehaviour
         lastWidth = Screen.width;
         lastHeight = Screen.height;
         lastMsaa = msaaFactors[(int)msaaFactor];
+#endif
 
-        // camera check
-        if (Camera.current)
+#if UNITY_EDITOR
+        DisableDeferredAA();
+        EnableDeferredAA();
+
+        // check scene view
+        if (isSceneView)
         {
-            if (Camera.current.Equals(attachedCam))
-            {
-                if (sceneViewAccess)
-                {
-                    EnableDeferredAA();
-                    sceneViewAccess = false;
-                }
-            }
-            else
-            {
-                DisableDeferredAA();
-                sceneViewAccess = true;
-            }
+            DisableDeferredAA();
+            isSceneView = false;
         }
 #endif
 

@@ -24,6 +24,7 @@ public:
 
 	virtual bool SetGBufferColor(int _index, int _msaaFactor, void *_colorBuffer) = 0;
 	virtual bool SetGBufferDepth(int _msaaFactor, void *_depthBuffer) = 0;
+	virtual void SetClearColor(float *_colorRGBA) = 0;
 	virtual void SetGBufferTarget() = 0;
 };
 

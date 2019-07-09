@@ -20,6 +20,11 @@ extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetGBufferDepth(int _
 	return s_CurrentAPI->SetGBufferDepth(_msaaFactor, _depthBuffer);
 }
 
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API SetClearColor(float *clearColor)
+{
+	s_CurrentAPI->SetClearColor(clearColor);
+}
+
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API Release()
 {
 	s_CurrentAPI->Release();

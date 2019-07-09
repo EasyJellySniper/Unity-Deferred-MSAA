@@ -31,6 +31,9 @@ public class DeferredMSAA : MonoBehaviour
     static extern bool SetGBufferDepth(int _msaaFactor, IntPtr _depthBuffer);
 
     [DllImport("SetGBufferTarget")]
+    static extern void SetClearColor(float[] _color);
+
+    [DllImport("SetGBufferTarget")]
     static extern void Release();
 
     [DllImport("SetGBufferTarget")]
@@ -71,12 +74,14 @@ public class DeferredMSAA : MonoBehaviour
     RenderTexture specularRT;
     RenderTexture normalRT;
     RenderTexture emissionRT;
+    RenderTexture shadowMaskRT;
     RenderTexture depthRT;
     RenderTexture skyTexture;
 
     RenderTexture diffuseAry;
     RenderTexture specularAry;
     RenderTexture normalAry;
+    RenderTexture shadowMaskAry;
 
     Camera attachedCam;
     CommandBuffer msGBuffer;
@@ -96,10 +101,19 @@ public class DeferredMSAA : MonoBehaviour
         attachedCam.renderingPath = RenderingPath.DeferredShading;
         attachedCam.allowHDR = true;
 
+        float[] bgColor = new float[4];
+        bgColor[0] = attachedCam.backgroundColor.linear.r;
+        bgColor[1] = attachedCam.backgroundColor.linear.g;
+        bgColor[2] = attachedCam.backgroundColor.linear.b;
+        bgColor[3] = attachedCam.backgroundColor.linear.a;
+
+        SetClearColor(bgColor);
+
         CreateMapAndColorBuffer("Custom diffuse", 0, RenderTextureFormat.ARGB32, 0, msaaFactors[(int)msaaFactor], ref diffuseRT);
         CreateMapAndColorBuffer("Custom specular", 0, RenderTextureFormat.ARGB32, 1, msaaFactors[(int)msaaFactor], ref specularRT);
         CreateMapAndColorBuffer("Custom normal", 0, RenderTextureFormat.ARGB2101010, 2, msaaFactors[(int)msaaFactor], ref normalRT);
         CreateMapAndColorBuffer("Custom emission", 0, RenderTextureFormat.ARGBHalf, 3, msaaFactors[(int)msaaFactor], ref emissionRT);
+        CreateMapAndColorBuffer("Custom shadowmask", 0, RenderTextureFormat.ARGB32, 4, msaaFactors[(int)msaaFactor], ref shadowMaskRT);
         CreateMapAndColorBuffer("Cutsom depth", 32, RenderTextureFormat.Depth, -1, msaaFactors[(int)msaaFactor], ref depthRT);
 
         // sky tex, quarter res is enough
@@ -109,6 +123,7 @@ public class DeferredMSAA : MonoBehaviour
         CreateAryMap("Diffuse Ary", RenderTextureFormat.ARGB32, ref diffuseAry);
         CreateAryMap("Specular Ary", RenderTextureFormat.ARGB32, ref specularAry);
         CreateAryMap("Normal Ary", RenderTextureFormat.ARGB2101010, ref normalAry);
+        CreateAryMap("Shadowmask Ary", RenderTextureFormat.ARGB32, ref shadowMaskAry);
 
         initSucceed = initSucceed && SetGBufferDepth(msaaFactors[(int)msaaFactor], depthRT.GetNativeDepthBufferPtr());
 
@@ -167,11 +182,16 @@ public class DeferredMSAA : MonoBehaviour
             copyGBuffer.SetRenderTarget(normalAry, 0, CubemapFace.Unknown, i);
             copyGBuffer.SetGlobalTexture("_MsaaTex", normalRT);
             copyGBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, transferAA);
+
+            copyGBuffer.SetRenderTarget(shadowMaskAry, 0, CubemapFace.Unknown, i);
+            copyGBuffer.SetGlobalTexture("_MsaaTex", shadowMaskRT);
+            copyGBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, transferAA);
         }
 
         copyGBuffer.SetGlobalTexture("_GBuffer0", diffuseAry);
         copyGBuffer.SetGlobalTexture("_GBuffer1", specularAry);
         copyGBuffer.SetGlobalTexture("_GBuffer2", normalAry);
+        copyGBuffer.SetGlobalTexture("_GBuffer4", shadowMaskAry);
 
         lastWidth = Screen.width;
         lastHeight = Screen.height;
@@ -206,12 +226,14 @@ public class DeferredMSAA : MonoBehaviour
         DestroyMap(specularRT);
         DestroyMap(normalRT);
         DestroyMap(emissionRT);
+        DestroyMap(shadowMaskRT);
         DestroyMap(depthRT);
         DestroyMap(skyTexture);
 
         DestroyMap(diffuseAry);
         DestroyMap(specularAry);
         DestroyMap(normalAry);
+        DestroyMap(shadowMaskAry);
 
         Release();
 

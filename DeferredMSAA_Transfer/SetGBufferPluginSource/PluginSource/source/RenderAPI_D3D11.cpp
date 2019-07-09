@@ -22,6 +22,7 @@ public:
 
 	virtual bool SetGBufferColor(int _index, int _msaaFactor, void *_colorBuffer);
 	virtual bool SetGBufferDepth(int _msaaFactor, void *_depthBuffer);
+	virtual void SetClearColor(float *_colorRGBA);
 	virtual void SetGBufferTarget();
 
 private:
@@ -30,11 +31,14 @@ private:
 	DXGI_FORMAT ConvertTypelessFormat(DXGI_FORMAT _typelessFormat);
 
 private:
+	static const int numGBuffer = 5;
+
 	ID3D11Device* m_Device;
-	ID3D11Texture2D* gBufferColor[4];
+	ID3D11Texture2D* gBufferColor[numGBuffer];
 	ID3D11Texture2D* gBufferDepth;
-	ID3D11RenderTargetView* gBufferColorView[4];
+	ID3D11RenderTargetView* gBufferColorView[numGBuffer];
 	ID3D11DepthStencilView* gBufferDepthView;
+	FLOAT emissionClear[4];
 };
 
 
@@ -131,6 +135,14 @@ bool RenderAPI_D3D11::SetGBufferDepth(int _msaaFactor, void * _depthBuffer)
 	return SUCCEEDED(dsvResult);
 }
 
+void RenderAPI_D3D11::SetClearColor(float * _colorRGBA)
+{
+	for (int i = 0; i < 4; i++)
+	{
+		emissionClear[i] = _colorRGBA[i];
+	}
+}
+
 void RenderAPI_D3D11::SetGBufferTarget()
 {
 	if (m_Device == nullptr)
@@ -148,14 +160,26 @@ void RenderAPI_D3D11::SetGBufferTarget()
 
 	// set gbuffer target
 	FLOAT clearColor[4] = { 0,0,0,-1 };
-	for (int i = 0; i < 4; i++)
+	FLOAT shadowMaskClear[4] = { 1,1,1,1 };
+	for (int i = 0; i < numGBuffer; i++)
 	{
-		immediateContext->ClearRenderTargetView(gBufferColorView[i], clearColor);
+		if (i == 3)
+		{
+			immediateContext->ClearRenderTargetView(gBufferColorView[i], emissionClear);
+		}
+		else if (i == 4)
+		{
+			immediateContext->ClearRenderTargetView(gBufferColorView[i], shadowMaskClear);
+		}
+		else
+		{
+			immediateContext->ClearRenderTargetView(gBufferColorView[i], clearColor);
+		}
 	}
 
 	// replace om binding with custom targets
 	immediateContext->ClearDepthStencilView(gBufferDepthView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
-	immediateContext->OMSetRenderTargets(4, gBufferColorView, gBufferDepthView);
+	immediateContext->OMSetRenderTargets(numGBuffer, gBufferColorView, gBufferDepthView);
 
 	immediateContext->Release();
 }
@@ -167,7 +191,7 @@ void RenderAPI_D3D11::CreateResources()
 
 void RenderAPI_D3D11::ReleaseResources()
 {
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < numGBuffer; i++)
 	{
 		SAFE_RELEASE(gBufferColorView[i]);
 	}

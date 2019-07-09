@@ -27,7 +27,7 @@ CGPROGRAM
 #pragma exclude_renderers nomrt
 
 #include "UnityCG.cginc"
-#include "UnityDeferredLibrary.cginc"
+#include "CustomDeferredLibrary.cginc"
 #include "UnityPBSLighting.cginc"
 #include "UnityStandardUtils.cginc"
 #include "UnityGBuffer.cginc"
@@ -52,7 +52,7 @@ half4 CalculateLight (unity_v2f_deferred i)
     float atten, fadeDist;
     UnityLight light;
     UNITY_INITIALIZE_OUTPUT(UnityLight, light);
-    UnityDeferredCalculateLightParams (i, wpos, uv, light.dir, atten, fadeDist);
+    CustomDeferredCalculateLightParams (i, wpos, uv, light.dir, atten, fadeDist);
 
     light.color = _LightColor.rgb * atten;
 
@@ -88,6 +88,12 @@ half4 CalculateLight (unity_v2f_deferred i)
 		
 		for (a = 0; a < msaaCount; a++)
 		{
+			// calc atten
+#if defined(SHADOWS_SHADOWMASK)
+			CustomDeferredAtten(wpos, fadeDist, uv, a, atten);
+			light.color = _LightColor.rgb * atten;
+#endif
+
 			gbuffer0 = _GBuffer0.Load(uint4(uv * _ScreenParams.xy, a, 0));
 			gbuffer1 = _GBuffer1.Load(uint4(uv * _ScreenParams.xy, a, 0));
 			gbuffer2 = _GBuffer2.Load(uint4(uv * _ScreenParams.xy, a, 0));

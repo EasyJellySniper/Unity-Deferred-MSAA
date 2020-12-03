@@ -41,7 +41,6 @@ Texture2DArray<float4> _GBuffer0;
 Texture2DArray<float4> _GBuffer1;
 Texture2DArray<float4> _GBuffer2;
 
-uint _MsaaFactor;
 float _MsaaThreshold;
 float _DebugMsaa;
 
